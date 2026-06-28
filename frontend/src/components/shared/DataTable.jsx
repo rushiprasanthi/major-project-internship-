@@ -1,6 +1,6 @@
 function DataTable({ columns, data, page = 1, totalPages = 1, onPageChange }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-soft">
+    <div className="overflow-x-auto w-full rounded-2xl border border-border bg-surface shadow-soft">
       {data.length === 0 ? (
         <div className="min-w-full px-6 py-12 text-center text-sm text-muted">
           No records found
@@ -36,6 +36,7 @@ function DataTable({ columns, data, page = 1, totalPages = 1, onPageChange }) {
           <div className="flex items-center justify-between border-t border-border bg-zinc-50 px-6 py-3 text-sm text-muted">
             <button
               type="button"
+              aria-label="Previous Page"
               onClick={() => onPageChange?.(page - 1)}
               disabled={page === 1}
               className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-primary transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -43,12 +44,13 @@ function DataTable({ columns, data, page = 1, totalPages = 1, onPageChange }) {
               Previous
             </button>
 
-            <span>
+            <span aria-live="polite">
               Page {page} of {totalPages}
             </span>
 
             <button
               type="button"
+              aria-label="Next Page"
               onClick={() => onPageChange?.(page + 1)}
               disabled={page === totalPages}
               className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-primary transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"

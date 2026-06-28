@@ -93,7 +93,7 @@ function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {summary ? (
               <>
                 <StatCard title="Total Resources" value={summary?.totalResources ?? 0} />
@@ -109,8 +109,8 @@ function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-6">
-            <div className="rounded-[2rem] border border-border bg-white p-6 shadow-soft transition duration-200 hover:shadow-card">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
+            <div className="rounded-[2rem] border border-border bg-white p-6 shadow-soft transition duration-200 hover:shadow-card h-full">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-primary">Resource utilization</h2>
@@ -119,52 +119,57 @@ function Dashboard() {
               </div>
 
               {pieData.length === 0 ? (
-                <div className="min-h-[20rem] grid place-items-center rounded-[1.5rem] bg-background p-8 text-center text-muted shadow-sm">
+                <div className="min-h-[28rem] grid place-items-center rounded-[1.5rem] bg-background p-8 text-center text-muted shadow-sm">
                   <p>No utilization data available.</p>
                 </div>
               ) : (
-                <div style={{ width: '100%', height: 320 }}>
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={110} label>
-                        {pieData.map((entry, idx) => (
-                          <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="min-h-[28rem] flex items-center justify-center">
+                  <div style={{ width: '100%', height: 320 }}>
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={110} label>
+                          {pieData.map((entry, idx) => (
+                            <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="rounded-[2rem] border border-border bg-white p-6 shadow-soft transition duration-200 hover:shadow-card">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-primary">Assets by condition</h2>
-                <p className="mt-1 text-sm text-muted">Condition distribution for your managed assets.</p>
+            <div className="rounded-[2rem] border border-border bg-white p-6 shadow-soft transition duration-200 hover:shadow-card h-full">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-primary">Assets by condition</h2>
+                  <p className="mt-1 text-sm text-muted">Condition distribution for your managed assets.</p>
+                </div>
               </div>
+
+              {barData.length === 0 ? (
+                <div className="min-h-[28rem] grid place-items-center rounded-[1.5rem] bg-background p-8 text-center text-muted shadow-sm">
+                  <p>No asset condition data available.</p>
+                </div>
+              ) : (
+                <div className="min-h-[28rem] flex items-center justify-center">
+                  <div style={{ width: '100%', height: 320 }}>
+                    <ResponsiveContainer>
+                      <BarChart data={barData} margin={{ top: 8, right: 0, left: -16, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                        <XAxis dataKey="condition" tick={{ fill: '#667085', fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#667085', fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }} />
+                        <Legend />
+                        <Bar dataKey="count" fill="#60A5FA" radius={[12, 12, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </div>
-            {barData.length === 0 ? (
-              <div className="min-h-[20rem] grid place-items-center rounded-[1.5rem] bg-background p-8 text-center text-muted shadow-sm">
-                <p>No asset condition data available.</p>
-              </div>
-            ) : (
-              <div style={{ width: '100%', height: 320 }}>
-                <ResponsiveContainer>
-                  <BarChart data={barData} margin={{ top: 8, right: 0, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="condition" tick={{ fill: '#667085', fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#667085', fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }} />
-                    <Legend />
-                    <Bar dataKey="count" fill="#60A5FA" radius={[12, 12, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
           </div>
         </>
       )}

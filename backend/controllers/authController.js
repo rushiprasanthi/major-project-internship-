@@ -3,21 +3,20 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import db from '../config/db.js';
 import { logger } from '../server.js';
+import { JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV } from '../config/env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('Environment variable JWT_SECRET is required for JWT authentication');
-}
-
+// SECURE UX FIX: Added .trim() to string inputs to prevent mobile autocorrect trailing spaces 
+// from causing false-positive validation rejections.
 const registerSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.string().min(1, 'Role is required'),
+  name: z.string().trim().min(1, 'Name is required'),
+  email: z.string().trim().email('Invalid email format'),
+  // Enforced Production Password Complexity (Min 8 chars, 1 Uppercase, 1 Lowercase, 1 Number)
+  password: z.string().min(8, 'Password must be at least 8 characters').regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/, 'Password must contain at least one uppercase, one lowercase, and one number'),
+  role: z.string().trim().min(1, 'Role is required'),
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email format'),
+  email: z.string().trim().email('Invalid email format'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -150,7 +149,7 @@ export async function login(req, res, next) {
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     const safeUser = {
@@ -162,10 +161,12 @@ export async function login(req, res, next) {
       created_at: user.created_at,
     };
 
+    // SECURE: Enforce explicit maxAge matching JWT expiration (1 Day) to prevent premature session loss
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: NODE_ENV === 'production',
       sameSite: 'Strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     });
 
     return res.status(200).json({
@@ -182,7 +183,7 @@ export async function login(req, res, next) {
 export async function logout(req, res) {
   return res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: NODE_ENV === 'production',
     sameSite: 'Strict',
   }).status(200).json({
     success: true,

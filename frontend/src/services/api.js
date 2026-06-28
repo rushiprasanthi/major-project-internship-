@@ -3,6 +3,8 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   withCredentials: true,
+  // RELIABILITY FIX: 15-second timeout prevents infinite loading spinners during mobile network drops
+  timeout: 15000, 
 });
 
 // A singleton promise to prevent concurrent identical requests for the CSRF token
@@ -19,7 +21,8 @@ api.interceptors.request.use(
         if (!csrfTokenPromise) {
           // Fire request directly through axios to avoid cyclic interceptor triggers
           csrfTokenPromise = axios.get(`${config.baseURL || api.defaults.baseURL}/csrf-token`, {
-            withCredentials: true
+            withCredentials: true,
+            timeout: 5000 // Shorter timeout specifically for CSRF negotiation
           }).then(res => {
             const token = res.data.data.csrfToken;
             api.defaults.headers.common['X-CSRF-Token'] = token;

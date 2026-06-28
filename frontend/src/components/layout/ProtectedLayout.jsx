@@ -38,7 +38,12 @@ function ProtectedLayout({ allowedRoles = [] }) {
 
         <div className="flex flex-1 flex-col overflow-hidden transition-all duration-300 lg:ml-72">
           <Header onOpenSidebar={openSidebar} />
-          <main className="flex-1 overflow-y-auto pt-16 p-6 transition-all duration-300 lg:p-8 lg:pt-16">
+          {/* ROOT CAUSE FIX: 
+            Added `pt-0 lg:pt-0` to prevent double-padding. 
+            The layout no longer pushes content down, allowing page components 
+            (like Dashboard's p-6) to define the exact 24px gap below the header.
+          */}
+          <main className="flex-1 overflow-y-auto p-6 pt-0 transition-all duration-300 lg:p-8 lg:pt-0">
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>

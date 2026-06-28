@@ -79,6 +79,9 @@ const schema = `
   CREATE INDEX IF NOT EXISTS idx_maintenance_asset ON maintenance_requests(asset_id);
   CREATE INDEX IF NOT EXISTS idx_maintenance_reporter ON maintenance_requests(reported_by);
   CREATE INDEX IF NOT EXISTS idx_maintenance_status ON maintenance_requests(status);
+  
+  -- NEW Performance Indexes for scaling
+  CREATE INDEX IF NOT EXISTS idx_resources_status ON resources(status);
 `;
 
 const createTables = async () => {

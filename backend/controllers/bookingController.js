@@ -2,6 +2,14 @@ import db from '../config/db.js';
 
 const VALID_BOOKING_STATUSES = ['Pending', 'Approved', 'Rejected', 'Cancelled'];
 
+function normalizeToUTC(dateString) {
+  if (!dateString) return null;
+  // Enforce parsing string explicitly as UTC ISO-8601
+  const date = new Date(dateString.includes('T') ? dateString : `${dateString}T00:00:00Z`);
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString().split('T')[0];
+}
+
 function parseTimeValue(timeValue) {
   if (!timeValue || typeof timeValue !== 'string') return null;
 
@@ -19,11 +27,19 @@ function parseTimeValue(timeValue) {
   return null;
 }
 
-function isTimeRangeValid(startTime, endTime) {
-  const normalizedStart = parseTimeValue(startTime);
-  const normalizedEnd = parseTimeValue(endTime);
-  if (!normalizedStart || !normalizedEnd) return false;
-  return normalizedStart < normalizedEnd;
+function isTimeRangeValid(bookingDate, startTime, endTime) {
+  const normDate = normalizeToUTC(bookingDate);
+  const normStart = parseTimeValue(startTime);
+  const normEnd = parseTimeValue(endTime);
+
+  if (!normDate || !normStart || !normEnd) return false;
+
+  const start = new Date(`${normDate}T${normStart}Z`);
+  const end = new Date(`${normDate}T${normEnd}Z`);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+
+  return start < end;
 }
 
 export async function getAll(req, res, next) {
@@ -66,7 +82,19 @@ export async function create(req, res, next) {
     });
   }
 
-  if (!isTimeRangeValid(start_time, end_time)) {
+  const normalizedDate = normalizeToUTC(booking_date);
+  const normalizedStart = parseTimeValue(start_time);
+  const normalizedEnd = parseTimeValue(end_time);
+
+  if (!normalizedDate || !normalizedStart || !normalizedEnd) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid ISO-8601 date or time format',
+      data: null,
+    });
+  }
+
+  if (!isTimeRangeValid(normalizedDate, normalizedStart, normalizedEnd)) {
     return res.status(400).json({
       success: false,
       message: 'start_time must be before end_time',
@@ -98,7 +126,8 @@ export async function create(req, res, next) {
       FOR UPDATE
     `;
 
-    const overlapResult = await client.query(overlapQuery, [resource_id, booking_date, start_time, end_time]);
+    // Execute queries using strictly normalized UTC components 
+    const overlapResult = await client.query(overlapQuery, [resource_id, normalizedDate, normalizedStart, normalizedEnd]);
     if (overlapResult.rowCount > 0) {
       await client.query('ROLLBACK');
       return res.status(409).json({
@@ -113,7 +142,7 @@ export async function create(req, res, next) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
-    const insertResult = await client.query(insertQuery, [userId, resource_id, booking_date, start_time, end_time]);
+    const insertResult = await client.query(insertQuery, [userId, resource_id, normalizedDate, normalizedStart, normalizedEnd]);
     await client.query('COMMIT');
 
     return res.status(201).json({
@@ -142,11 +171,16 @@ export async function approve(req, res, next) {
   const bookingId = parseInt(req.params.id, 10);
 
   try {
-    const result = await db.query('UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *', ['Approved', bookingId]);
+    // SECURE: Enforce state machine. Only 'Pending' bookings can be approved to prevent overlap bypass.
+    const result = await db.query(
+      `UPDATE bookings SET status = $1 WHERE id = $2 AND status = 'Pending' RETURNING *`, 
+      ['Approved', bookingId]
+    );
+    
     if (result.rowCount === 0) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: 'Booking not found',
+        message: 'Booking not found or cannot be approved from its current state',
         data: null,
       });
     }
@@ -174,11 +208,16 @@ export async function reject(req, res, next) {
   const bookingId = parseInt(req.params.id, 10);
 
   try {
-    const result = await db.query('UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *', ['Rejected', bookingId]);
+    // SECURE: Enforce state machine.
+    const result = await db.query(
+      `UPDATE bookings SET status = $1 WHERE id = $2 AND status = 'Pending' RETURNING *`, 
+      ['Rejected', bookingId]
+    );
+    
     if (result.rowCount === 0) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: 'Booking not found',
+        message: 'Booking not found or cannot be rejected from its current state',
         data: null,
       });
     }
@@ -234,7 +273,20 @@ export async function cancel(req, res, next) {
       });
     }
 
-    const result = await db.query('UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *', ['Cancelled', bookingId]);
+    // SECURE: Enforce state machine. Only active bookings can be cancelled.
+    const result = await db.query(
+      `UPDATE bookings SET status = $1 WHERE id = $2 AND status IN ('Pending', 'Approved') RETURNING *`, 
+      ['Cancelled', bookingId]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking cannot be cancelled from its current state',
+        data: null,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Booking cancelled successfully',

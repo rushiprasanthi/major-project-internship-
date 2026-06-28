@@ -3,9 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import csurf from 'csurf';
+import { doubleCsrf } from 'csrf-csrf';
 import winston from 'winston';
-import 'dotenv/config';
+import { PORT, NODE_ENV, COOKIE_SECRET, CSRF_SECRET, FRONTEND_URL } from './config/env.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
@@ -29,54 +29,74 @@ export const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    ...(process.env.NODE_ENV === 'production'
+    ...(NODE_ENV === 'production'
       ? [new winston.transports.File({ filename: 'error.log', level: 'error' })]
       : []),
   ],
 });
 
 export const app = express();
-const PORT = process.env.PORT || 5000;
+
+// SECURE: CRITICAL FIX FOR PRODUCTION. 
+// Without this, the load balancer's IP is rate-limited, locking out all users globally.
+app.set('trust proxy', 1);
+
+// Global API Rate Limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
+  windowMs: 5 * 60 * 1000, // 5 minutes
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
-const csrfProtection = csurf({
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Strict',
-  },
-});
-
 app.use(helmet());
-app.use(cookieParser());
+app.use(cookieParser(COOKIE_SECRET));
 app.use(
   cors({
-    origin: frontendOrigin,
+    origin: FRONTEND_URL,
     credentials: true,
   })
 );
 app.use(express.json());
 
+// Apply global rate limiting to all /api/ routes
+app.use('/api/', apiLimiter);
+
+// Setup modern double-csrf protection using strict env secrets
+const { doubleCsrfProtection, generateToken } = doubleCsrf({
+  getSecret: () => CSRF_SECRET,
+  cookieName: 'x-csrf-token',
+  cookieOptions: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: NODE_ENV === 'production',
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+  getTokenFromRequest: (req) => req.headers['x-csrf-token'],
+});
+
 function conditionalCsrf(req, res, next) {
   if (req.headers.authorization?.startsWith('Bearer ')) {
     return next();
   }
-  return csrfProtection(req, res, next);
+  return doubleCsrfProtection(req, res, next);
 }
 
 app.use(conditionalCsrf);
+
 app.get('/api/csrf-token', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'CSRF token generated',
-    data: { csrfToken: req.csrfToken() },
+    data: { csrfToken: generateToken(req, res) },
   });
 });
 
@@ -94,7 +114,7 @@ app.use('/api/reports', reportRoutes);
 
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'test') {
+if (NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     logger.info(`Backend server running on http://localhost:${PORT}`);
   });

@@ -28,7 +28,9 @@ export async function getAll(req, res, next) {
     const parsedPage = Number.parseInt(req.query.page, 10);
     const parsedLimit = Number.parseInt(req.query.limit, 10);
     const page = Number.isNaN(parsedPage) ? 1 : Math.max(parsedPage, 1);
-    const limit = Number.isNaN(parsedLimit) ? 10 : Math.max(parsedLimit, 1);
+    
+    // SECURE: Enforce maximum limit of 100 to prevent DoS attacks via massive payloads
+    const limit = Number.isNaN(parsedLimit) ? 10 : Math.min(100, Math.max(parsedLimit, 1));
     const offset = (page - 1) * limit;
 
     const query = `SELECT * FROM resources ${whereClause} ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;

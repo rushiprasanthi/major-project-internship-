@@ -14,13 +14,17 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const logout = async () => {
+  const logout = async (localOnly = false) => {
+    // Clear user immediately for instant UI reaction
     setUser(null);
+    
+    // SECURE: Prevent infinite loop if interceptor triggered this logout
+    if (localOnly) return;
 
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      console.warn('Logout failed', error);
+      console.warn('Logout API failed, continuing local clear', error);
     }
   };
 
@@ -32,7 +36,8 @@ export function AuthProvider({ children }) {
         setUser(restoredUser);
       } catch (error) {
         if (error.response?.status === 401) {
-          await logout();
+          // Clear locally on initialization without hitting the logout endpoint again
+          await logout(true);
         }
       } finally {
         setLoading(false);
@@ -44,11 +49,24 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const handleUnauthorized = () => {
-      logout();
+      // Pass `true` to avoid triggering an API call that could return 401 and loop infinitely
+      logout(true).finally(() => {
+        window.location.href = '/login'; 
+      });
+    };
+
+    const handleForbidden = () => {
+      // Force redirect to a safe zone if an action is strictly forbidden (403)
+      window.location.href = '/dashboard';
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    window.addEventListener('auth:forbidden', handleForbidden);
+    
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener('auth:forbidden', handleForbidden);
+    };
   }, []);
 
   const hasRole = (roles) => {
