@@ -30,7 +30,8 @@ export const logger = winston.createLogger({
   transports: [
     new winston.transports.Console(),
     ...(NODE_ENV === 'production'
-      ? [new winston.transports.File({ filename: 'error.log', level: 'error' })]
+      // FIX: Write to /tmp/ which is the only writable directory in PaaS/Serverless
+      ? [new winston.transports.File({ filename: '/tmp/error.log', level: 'error' })]
       : []),
   ],
 });
@@ -38,19 +39,18 @@ export const logger = winston.createLogger({
 export const app = express();
 
 // SECURE: CRITICAL FIX FOR PRODUCTION. 
-// Without this, the load balancer's IP is rate-limited, locking out all users globally.
 app.set('trust proxy', 1);
 
 // Global API Rate Limiter
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
+  windowMs: 5 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
@@ -69,13 +69,14 @@ app.use(express.json());
 // Apply global rate limiting to all /api/ routes
 app.use('/api/', apiLimiter);
 
-// Setup modern double-csrf protection using strict env secrets
+// FIX: Update cookie options for decoupled production environments
 const { doubleCsrfProtection, generateToken } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
   cookieName: 'x-csrf-token',
   cookieOptions: {
     httpOnly: true,
-    sameSite: 'strict',
+    // If frontend is Vercel and backend is elsewhere, sameSite must be 'none' and secure must be true
+    sameSite: NODE_ENV === 'production' ? 'none' : 'strict',
     secure: NODE_ENV === 'production',
   },
   size: 64,
@@ -116,7 +117,7 @@ app.use(errorHandler);
 
 if (NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    logger.info(`Backend server running on http://localhost:${PORT}`);
+    logger.info(`Backend server running on port ${PORT}`);
   });
 }
 
