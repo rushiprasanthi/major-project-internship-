@@ -1,0 +1,149 @@
+Here is the complete **Project Memory File** generated based on the provided project documentation and files.
+
+### Project Overview
+
+* **Project name:** Smart Resource Booking & Asset Management System (RMS MVP)
+* **Purpose:** A centralized platform for institutional resource management, including booking spaces, tracking assets, and managing maintenance ticketing.
+* **Target users:** Admins (merged from Super Admin/Resource Manager), Faculty (Teaching Staff), Students, and Maintenance/Support Staff.
+* **Core workflow:** Allocate → Book → Equip → Maintain → Report.
+* **Main business goals:** Provide conflict-free scheduling, role-based access control, asset visibility, and a closed-loop maintenance workflow.
+* **Technology stack:** * Frontend: React 18, Vite, Tailwind CSS, React Router, Recharts, Lucide React
+* Backend: Node.js, Express, PostgreSQL, bcryptjs, jsonwebtoken
+
+
+* **Current project status:** Completed MVP scaffold/72-hour single-developer execution reference.
+* **Overall architecture:** Monolithic architecture with a flat React frontend communicating via REST API to a Node/Express backend, connected to a PostgreSQL database.
+
+---
+
+### Directory Structure
+
+* **/backend**
+* **Purpose:** Houses the Express API and PostgreSQL database setup.
+* **Responsibilities:** Authentication, API routing, business logic, transaction handling, and database interaction.
+* **Contains:** `config/`, `database/`, `middleware/`, `routes/`, `controllers/`, `services/`, `utils/`, `server.js`.
+
+
+* **/frontend**
+* **Purpose:** Houses the React SPA client.
+* **Responsibilities:** UI rendering, routing, state management, and API consumption.
+* **Contains:** `src/`, `package.json`, `tailwind.config.js`, `vite.config.js`.
+
+
+* **/frontend/src/components**
+* **Purpose:** Reusable UI elements split by domain.
+* **Contains:** `layout/` (Sidebar, Header, ProtectedLayout), `shared/` (PageHeader, StatCard, StatusBadge, DataTable, Modal, LoadingSpinner), `forms/` (ResourceForm, BookingForm, AssetForm, TicketForm).
+
+
+* **/frontend/src/pages**
+* **Purpose:** Top-level route components representing full screens.
+* **Contains:** `Login.jsx`, `Dashboard.jsx`, `Resources.jsx`, `Bookings.jsx`, `Assets.jsx`, `Maintenance.jsx`, `Reports.jsx`.
+
+
+* **/frontend/src/services**
+* **Purpose:** API abstraction layer.
+* **Contains:** `axios.js`, `authService.js`, `resourceService.js`, `bookingService.js`, `assetService.js`, `maintenanceService.js`, `reportService.js`.
+
+
+* **/frontend/src/hooks**
+* **Contains:** `useAuth.jsx`.
+* **Purpose:** Provides a custom hook to consume authentication state.
+
+
+* **/frontend/src/context**
+* **Contains:** `AuthContext.jsx`.
+* **Purpose:** Manages global authentication state across the application.
+
+
+
+---
+
+### /pages (or app/routes)
+
+* **Login (`Login.jsx`)**
+* **Purpose:** Entry point for user authentication.
+* **User actions:** Submit email and password.
+
+
+* **Dashboard (`Dashboard.jsx`)**
+* **Purpose:** Single-screen operational visibility.
+* **Components used:** KPI cards, Recharts visualizations, Budget simulation card.
+
+
+* **Resources (`Resources.jsx`)**
+* **Purpose:** Single source of truth for bookable physical spaces.
+* **User actions:** Admin CRUD capabilities; View and book for students/faculty.
+
+
+* **Bookings (`Bookings.jsx`)**
+* **Purpose:** Conflict-free scheduling engine.
+* **User actions:** Create/cancel (Students/Faculty), Approve/Reject (Admin).
+
+
+* **Assets (`Assets.jsx`)**
+* **Purpose:** Track equipment lifecycle and bind to resources.
+* **User actions:** Admin CRUD capabilities; Read-only for maintenance staff.
+
+
+* **Maintenance (`Maintenance.jsx`)**
+* **Purpose:** Closed-loop ticketing from issue report to resolution.
+* **User actions:** Raise tickets (Admin/Faculty/Maintenance), Update status (Admin/Maintenance).
+
+
+* **Reports (`Reports.jsx`)**
+* **Purpose:** Tabular analytics for institutional decision support.
+* **User actions:** View aggregated data and export as CSV.
+
+
+
+---
+
+### Navigation Flow
+
+Login → Protected Layout (Role Guards applied) → Dashboard
+From Dashboard, accessible via Sidebar:
+↓ Resources
+↓ Bookings (Admin, Faculty, Student)
+↓ Assets (Admin, Maintenance)
+↓ Maintenance (Admin, Faculty, Maintenance)
+↓ Reports (Admin, Faculty, Maintenance)
+
+---
+
+### API Architecture
+
+* **Backend services:** Express.js REST API with 24 total endpoints.
+* **Authentication:** Stateless JWT issuance with 1-day expiry, role-aware middleware (`authMiddleware`, `authorize()`).
+* **Response flow:** Utilizes a standard response envelope format `{ success, message, data }`.
+
+---
+
+### Design System Audit
+
+* **Current colors:** * Primary: `zinc-900` (`#18181b` approx)
+* Background: `neutral-50` (`#fafafa` approx)
+
+
+* **Typography:** Inter font family (sans-serif default).
+* **Icons:** Lucide React icons (`lucide-react`).
+* **Data Visualization:** Recharts (PieChart for utilization, BarChart for asset condition).
+
+---
+
+### Safe UI Modification Zones
+
+* **Safe files:** `tailwind.config.js`, `postcss.config.js`, `src/index.css`, files under `src/components/` and `src/pages/`.
+* **Avoid Modifying (Business Logic/Routing):** * `src/App.jsx` (Contains strict `<RoleGuard>` routing logic)
+* `src/hooks/useAuth.jsx` & `src/context/AuthContext.jsx` (Critical Auth state)
+* `src/services/*` (API consumption contracts)
+* Any file within the `/backend` directory (express controllers, JWT verification, PostgreSQL queries, transaction locks).
+
+
+
+---
+
+### AI Memory Instructions
+
+* **This is a completed, working project** tailored explicitly to a 72-hour MVP scope.
+* **Never modify business logic** unless requested. Do not attempt to add non-MVP features like HR, library, or complex workflows.
+* **Preserve APIs:** The 24 endpoints and exact table schemas are locked constraints.
